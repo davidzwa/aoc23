@@ -1,0 +1,4 @@
+﻿Game 2: 3 green, 7 red; 3 blue, 5 red; 2 green, 1 blue, 6 red; 3 green, 2 red, 3 blue
+Out: (7, 3, 3), NOT POSSIBLE 
+Game 7: 9 red, 8 blue, 13 green; 9 red, 7 blue, 10 green; 7 blue, 2 red, 11 green; 4 red, 6 blue, 10 green; 3 blue, 12 green, 1 red
+Out: (9, 13, 8), NOT POSSIBLE
