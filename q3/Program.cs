@@ -1,5 +1,13 @@
-﻿string[] symbols = new[]
+﻿var files = new[]
 {
+    "input.txt",
+    "example.txt",
+    "test1.txt",
+};
+string filePath = files[0];
+List<string> fileContent = File.ReadLines(filePath).ToList();
+
+string[] symbols = {
     "@",
     "#",
     "$",
@@ -13,16 +21,6 @@
     "$",
     "/"
 };
-
-
-var files = new[]
-{
-    "input.txt",
-    "example.txt",
-    "test1.txt",
-};
-string filePath = files[0];
-List<string> fileContent = File.ReadLines(filePath).ToList();
 
 // For part two we are first going to find any gears '*' and put their location in a X-Y-countdict
 Dictionary<(int, int), (int, int)> dict = new Dictionary<(int, int), (int, int)>();
