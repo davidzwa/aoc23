@@ -22,8 +22,23 @@ var files = new[]
     "test1.txt",
 };
 string filePath = files[0];
-
 List<string> fileContent = File.ReadLines(filePath).ToList();
+
+// For part two we are first going to find any gears '*' and put their location in a X-Y-countdict
+Dictionary<(int, int), (int, int)> dict = new Dictionary<(int, int), (int, int)>();
+
+for (int row = 0; row < fileContent.Count; row++)
+{
+    foreach (var symbol in symbols)
+    {
+        var originalRowString = fileContent[row];
+        if (originalRowString.Contains(symbol))
+        {
+            var col = originalRowString.IndexOf(symbol, StringComparison.InvariantCulture);
+            dict[(row, col)] = (0,1);
+        }
+    }
+}
 
 var sumPartsPart1 = 0;
 for (int row = 0; row < fileContent.Count; row++)
@@ -61,6 +76,7 @@ for (int row = 0; row < fileContent.Count; row++)
 
         if (col == rowString.Length - 1 && foundNumber || addedNumberNextCol)
         {
+            var converted = int.Parse(numberString);
             var numberLength = numberString.Length;
             var isPart = false;
             for (int searchRow = Math.Max(row - 1, 0);
@@ -72,72 +88,38 @@ for (int row = 0; row < fileContent.Count; row++)
                 var endIndex = Math.Min(col + 1, fileContent[searchRow].Length);
                 var substr = fileContent[searchRow].Substring(startIndex, endIndex - startIndex);
                 Console.WriteLine(substr);
+
                 isPart |= symbols.Any(s => substr.Contains(s));
+                var gearAt = substr.IndexOf('*');
+                if (gearAt != -1)
+                {
+                    Console.WriteLine($"Gear! {substr[gearAt]} ({searchRow},{startIndex + gearAt})");
+                    if (!dict.ContainsKey((searchRow, startIndex + gearAt)))
+                    {
+                        dict.Add((searchRow, startIndex + gearAt), (1, converted));
+                    }
+                    else
+                    {
+                        var dictVal = dict[(searchRow, startIndex + gearAt)];
+                        dictVal.Item1++;
+                        dictVal.Item2 *= converted;
+                        dict[(searchRow, startIndex + gearAt)] = dictVal;
+                    }
+                }
             }
 
             Console.WriteLine($"Reporting number {numberString} isPart {isPart}");
             if (isPart)
             {
-                sumPartsPart1 += int.Parse(numberString);
+                sumPartsPart1 += converted;
             }
         }
     }
 
-    // foreach (var symbol in symbols)
-    // {
-    //     var originalRowString = fileContent[row];
-    //     // When symbol found we need to look 'around it' for number symbols in the nearest cells
-    //     if (originalRowString.Contains(symbol))
-    //     {
-    //         var col = originalRowString.IndexOf(symbol, StringComparison.InvariantCulture);
-    //         Console.WriteLine($"({row},{col}) {symbol}");
-    //
-    //         
-    //         for (int i = row-1; i <= Math.Min(fileContent.Count-1,row+1); i++)
-    //         {
-    //             var substr = fileContent[i].Substring(Math.Max(col - 3, 0),
-    //                 Math.Min(7, fileContent[i].Length - col));
-    //             Console.WriteLine(substr);
-    //         }
-    //         
-    //         Console.WriteLine("");
-    //         
-    //         continue;
-    //         
-    //         // for (int compareCol = col - 1; compareCol <= col + 1; compareCol++)
-    //         // {
-    //         //     for (int compareRow = row-1; compareRow <= row+1; compareRow++)
-    //         //     {
-    //         //         var rowString = fileContent[compareRow];
-    //         //         if (compareCol == col && compareRow == row)
-    //         //         {
-    //         //             if (!rowString[compareCol].Equals(char.Parse(symbol)))
-    //         //             {
-    //         //                 throw new Exception("Middle cell char not as expected");
-    //         //             }
-    //         //             // Console.WriteLine("Symbol found at " + compareRow + " " + compareCol + " " + symbol);
-    //         //             continue;
-    //         //         }
-    //         //
-    //         //         var i = int.TryParse(rowString[compareCol].ToString(), out int val);
-    //         //         if (i)
-    //         //         {
-    //         //             var substr = rowString.Substring(Math.Max(compareCol - 2, 0),
-    //         //                 Math.Min(4, rowString.Length - compareCol));
-    //         //             // substr.Split(".");
-    //         //             Console.WriteLine(substr);
-    //         //             // places.Add((val, fileContent[compareRow].Length.ToString(), compareRow, compareCol));
-    //         //             // Console.WriteLine((symbol, val, rowString.Length.ToString(), compareRow, compareCol));
-    //         //             
-    //         //         }
-    //         //         Console.WriteLine("----");
-    //         //     }
-    //         // }
-    //         
-    //         
-    //     }
-    // }    
+    // Here I had code to iterate over symbols with a search. Not super practical compared to the hitbox-approach above.
 }
 
 Console.WriteLine($"Part 1: {sumPartsPart1}");
 // 546563 correct
+
+Console.WriteLine(dict.Where((k, v) => k.Value.Item1 == 2).Select(k => k.Value.Item2).Sum());
