@@ -4,7 +4,7 @@
     "example.txt",
     "test1.txt",
 };
-string filePath = files[1];
+string filePath = files[0];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
 List<long> seeds = new();
@@ -55,6 +55,8 @@ foreach (var line in fileContent)
 }
 
 List<List<(long Input, long Output)>> seedIO = new();
+List<long> locations = new();
+
 foreach (var seed in seeds)
 {
     // var lastStage = stages.LastOrDefault();
@@ -68,8 +70,7 @@ foreach (var seed in seeds)
         var lastInput = lastInputOutput.Input;
         var lessThanMapping = mapping
             .Mapping.FirstOrDefault(m =>
-                // Console.WriteLine($"{m.Source < lastInput && m.Source + m.Count > lastInput}");
-                m.Source < lastInput && lastInput < m.Source + m.Count
+                m.Source <= lastInput && lastInput < m.Source + m.Count
             );
 
         var conversion = lessThanMapping != default
@@ -78,13 +79,19 @@ foreach (var seed in seeds)
         lastInputOutput!.Output = conversion;
         lastInputOutputs[^1] = lastInputOutput;
         lastInputOutputs = lastInputOutputs.Append((conversion, 0L)).ToList();
-        if (mapping.Link.Target == "location")
+        if (mapping.Link.Target == "location" || mapping.Link.Target == "soil")
         {
+            if (mapping.Link.Target == "location")
+            {
+                locations.Add(lastInputOutput.Output);
+            }
             Console.WriteLine(
                 $"{mapping.Link.Source} {lastInputOutput.Input}, {mapping.Link.Target} {lastInputOutput.Output}");
         }
     }
 }
+
+Console.WriteLine(locations.Min());
 
 public class Map
 {
