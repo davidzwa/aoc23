@@ -51,3 +51,4 @@ for (var i = 0; i < cardCounts.Count; i++)
 
 // 1, 2, 4, 8, 14, 1
 Console.WriteLine(cardCounts.Sum());
+// 8063216 correct
