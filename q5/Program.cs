@@ -4,12 +4,12 @@
     "example.txt",
     "test1.txt",
 };
-string filePath = files[1];
+string filePath = files[0];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
 List<long> seeds = new();
 
-List<Map> mappings = new();
+List<Map> transformRows = new();
 
 (string Source, string Target)? processingMap = null;
 foreach (var line in fileContent)
@@ -22,26 +22,23 @@ foreach (var line in fileContent)
     {
         var toFrom = line.Replace(" map:", "").Split("-to-").ToList();
         processingMap = (toFrom.First(), toFrom.Last());
-        mappings.Add(new Map()
+        transformRows.Add(new Map()
         {
             Link = processingMap.Value,
-            Mapping = new()
+            Ranges = new()
         });
     }
     else if (!string.IsNullOrWhiteSpace(line))
     {
         var values = line.Split(" ", StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToList();
-        mappings.Last().Mapping.Add((values[1], values.First(), values.Last()));
+        transformRows.Last().Ranges.Add((values[1], values.First(), values.Last()));
     }
     else if (string.IsNullOrWhiteSpace(line))
     {
-        if (mappings.Count > 0)
+        if (transformRows.Count > 0)
         {
-            mappings.Last().Mapping.Sort((m1, m2) => m1.Source > m2.Source ? 1 : -1);
+            transformRows.Last().Ranges.Sort((m1, m2) => m1.Source > m2.Source ? 1 : -1);
         }
-
-        processingMap = null;
-        continue;
     }
 }
 
@@ -53,12 +50,12 @@ long ProcessLocations(long seed)
     var lastInputOutputs = new List<(long Input, long Output)> { (Input: seed, Output: 0L) };
     seedIO.Add(lastInputOutputs);
 
-    foreach (var mapping in mappings)
+    foreach (var mapping in transformRows)
     {
         var lastInputOutput = lastInputOutputs.Last();
         var lastInput = lastInputOutput.Input;
         var lessThanMapping = mapping
-            .Mapping.FirstOrDefault(m =>
+            .Ranges.FirstOrDefault(m =>
                 m.Source <= lastInput && lastInput < m.Source + m.Count
             );
 
@@ -75,8 +72,8 @@ long ProcessLocations(long seed)
                 return lastInputOutput.Output;
             }
 
-            Console.WriteLine(
-                $"{mapping.Link.Source} {lastInputOutput.Input}, {mapping.Link.Target} {lastInputOutput.Output}");
+            // Console.WriteLine(
+            //     $"{mapping.Link.Source} {lastInputOutput.Input}, {mapping.Link.Target} {lastInputOutput.Output}");
         }
     }
 
@@ -88,66 +85,169 @@ foreach (var seed in seeds)
     locations.Add(ProcessLocations(seed));
 }
 
-Console.WriteLine(locations.Min());
+// Console.WriteLine(locations.Min());
+// Console.WriteLine();
 // 51580674 correct
 
-List<long> locations2 = new();
-var seedCouples = new List<(long Start, long Count)>();
-for (int i = 0; i < seeds.Count / 2; i++)
+var seedCouples = new List<(long Start, long End)>();
+for (int i = 0; i < seeds.Count; i += 2)
 {
     seedCouples.Add(
-        (seeds[i], seeds[i + 1])
+        (seeds[i], seeds[i] + seeds[i + 1])
     );
 }
 
+foreach (var (start, end) in seedCouples.Slice(0, 1))
+{
+    List<(long Start, long Finish)> rangesToProcess = new()
+    {
+        (start, end)
+    };
+    List<(long Start, long Finish, long LocationStart, long LocationEnd)> rangesDone = new()
+    {
+        (start, end, 0, 0)
+    };
+
+    Console.WriteLine($"StartSeed {start:n0}\t\t\tEndSeed {end:n0}");
+
+    // while (rangesToProcess.Count != 0)
+    // {
+    foreach (var transform in transformRows.Slice(0, 1))
+    {
+        var hasOverlap = false;
+        List<(long Start, long Finish, long LocationStart, long LocationEnd)> ranges = new(); 
+        foreach (var range in transform.Ranges)
+        {
+            var startRange = range.Source;
+            var endRange = range.Source + range.Count;
+
+            var link = transform.Link;
+
+            var startInside = start >= startRange && start <= endRange;
+            var endInside = (end >= startRange && end <= endRange);
+            hasOverlap |= startInside || endInside;
+
+            var isContained = startInside && endInside;
+            if (!hasOverlap)
+            {
+                // Console.WriteLine($"No Overlap {hasOverlap} {startOverlap} {endOverlap} {startRange:n0} to {endRange:n0} {start:n0} to {end:n0}");
+                continue;
+            }
+
+            // If we have a hit, we should add the range on the left of the hit as direct mapping range
+            if (ranges.Count == 0 && start > 0)
+            {
+                ranges.Add((0, start - 1, 0, start - 1));
+            }
+            
+            var prefix =
+                $"{link.Source}-{link.Target} StartRange {startRange:n0}\tEndRange {endRange:n0}";
+            if (isContained)
+            {
+                var rangeCount = end - start;
+                var targetStart = range.Target + (start - startRange);
+                var addedRange = (start, end, targetStart, targetStart + rangeCount);
+                ranges.Add(addedRange);
+                Console.WriteLine($"${prefix} Contained {addedRange}");
+
+                // We've found the end of the range
+                break;
+            }
+
+            // ... [1 ... 2] ... [ 3 ... 4] ...
+            // I2  I1  LO  LO2  RO2   RO  O1    O2
+            // I2-I1, LO2-RO2, O1-O2 should be added as direct range as well
+            // LO2-RO2 can be: null (contained), partial (right or left overlap) or overfull (multi-range)
+            
+            // With a previous Right-Overlap we could be skipping untransformed gaps per accident
+            // Ranges 5-8 11-14 seed 6-12 could result in (6,8,?,,?) (11,12,?,,?) meaning 9-10 is left unmapped 
+            if (startInside)
+            {
+                var rangeCount = endRange - start;
+                var targetStart = range.Target + (start - startRange);
+                var addedRange = (start, start + rangeCount, targetStart, targetStart + rangeCount);
+                ranges.Add(addedRange);
+                Console.WriteLine($"{prefix} Left-Overlap {addedRange}");
+                continue;
+            }
+            
+            if (endInside)
+            {
+                var rangeCount = end - startRange;
+                var targetStart = range.Target + (start - startRange);
+                var addedRange = (startRange, startRange + rangeCount, targetStart, targetStart + rangeCount);
+                // TODO add range for LO2-RO2 on the left side
+                ranges.Add(addedRange);
+                Console.WriteLine($"{prefix} Right-Overlap {addedRange}");
+
+                // We've found the end of the splitrange
+                break;
+            }
+            else
+            {
+                var rangeCount = endRange - startRange;
+                var targetStart = range.Target;
+                // TODO add range for LO2-RO2 on the left side
+                var addedRange = (startRange, startRange + rangeCount, targetStart, targetStart + rangeCount);
+                hasOverlap = true;
+                Console.WriteLine($"FULL OVERLAP {addedRange}");
+            }
+        }
+    }
+}
+
+return;
+// List<long> locations2 = new();
 // This is very slow and also very stupid
 // 3 scenario's
 // 1 - range is completely outside seed-ranges => keep range as is (lucky)
 // 2 - range is completely in seed-range => map range to new range (lucky)
 // 3 - range is partially in seed-ranges => split range into sub-range
-foreach (var seed in seedCouples)
-{
-    Console.WriteLine($"Range {seed}");
-    for (long i = seed.Start; i < seed.Start + seed.Count; i++)
-    {
-        // var lastStage = stages.LastOrDefault();
-        var lastInputOutputs = new List<(long Input, long Output)> { (Input: i, Output: 0L) };
-        seedIO.Add(lastInputOutputs);
-
-        foreach (var mapping in mappings)
-        {
-            var lastInputOutput = lastInputOutputs.Last();
-            var lastInput = lastInputOutput.Input;
-            var lessThanMapping = mapping
-                .Mapping.FirstOrDefault(m =>
-                    m.Source <= lastInput && lastInput < m.Source + m.Count
-                );
-
-            var conversion = lessThanMapping != default
-                ? lessThanMapping.Target + (lastInput - lessThanMapping.Source)
-                : lastInput;
-            lastInputOutput!.Output = conversion;
-            lastInputOutputs[^1] = lastInputOutput;
-            lastInputOutputs = lastInputOutputs.Append((conversion, 0L)).ToList();
-            if (mapping.Link.Target == "location" || mapping.Link.Target == "soil")
-            {
-                if (mapping.Link.Target == "location")
-                {
-                    locations2.Add(lastInputOutput.Output);
-                    break;
-                }
-
-                // Console.WriteLine(
-                //     $"{mapping.Link.Source} {lastInputOutput.Input}, {mapping.Link.Target} {lastInputOutput.Output}");
-            }
-        }
-    }
-}
-Console.WriteLine(locations2.Min());
+// foreach (var seed in seedCouples)
+// {
+//     Console.WriteLine($"Range {seed}");
+//     
+//     
+//     for (long i = seed.Start; i < seed.Start + seed.Count; i++)
+//     {
+//         // var lastStage = stages.LastOrDefault();
+//         var lastInputOutputs = new List<(long Input, long Output)> { (Input: i, Output: 0L) };
+//         seedIO.Add(lastInputOutputs);
+//
+//         foreach (var mapping in mappings)
+//         {
+//             var lastInputOutput = lastInputOutputs.Last();
+//             var lastInput = lastInputOutput.Input;
+//             var lessThanMapping = mapping
+//                 .Mapping.FirstOrDefault(m =>
+//                     m.Source <= lastInput && lastInput < m.Source + m.Count
+//                 );
+//
+//             var conversion = lessThanMapping != default
+//                 ? lessThanMapping.Target + (lastInput - lessThanMapping.Source)
+//                 : lastInput;
+//             lastInputOutput!.Output = conversion;
+//             lastInputOutputs[^1] = lastInputOutput;
+//             lastInputOutputs = lastInputOutputs.Append((conversion, 0L)).ToList();
+//             if (mapping.Link.Target == "location" || mapping.Link.Target == "soil")
+//             {
+//                 if (mapping.Link.Target == "location")
+//                 {
+//                     locations2.Add(lastInputOutput.Output);
+//                     break;
+//                 }
+//
+//                 // Console.WriteLine(
+//                 //     $"{mapping.Link.Source} {lastInputOutput.Input}, {mapping.Link.Target} {lastInputOutput.Output}");
+//             }
+//         }
+//     }
+// }
+// Console.WriteLine(locations2.Min());
 
 public class Map
 {
     public (string Source, string Target) Link { get; set; }
 
-    public List<(long Source, long Target, long Count)> Mapping { get; set; }
+    public List<(long Source, long Target, long Count)> Ranges { get; set; }
 }
