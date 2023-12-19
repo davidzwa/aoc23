@@ -7,7 +7,7 @@ var files = new[]
     "test1.txt",
     "input2.txt",
 };
-string filePath = files[3];
+string filePath = files[1];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
 (List<long> seeds, List<Map> transformers) = PartA.ParseFile(fileContent);
@@ -17,7 +17,7 @@ var seedCouples = new List<(long Start, long End)>();
 for (int i = 0; i < seeds.Count; i += 2)
 {
     seedCouples.Add(
-        (seeds[i], seeds[i] + seeds[i + 1])
+        (seeds[i], seeds[i] + seeds[i + 1] - 1)
     );
 }
 
@@ -33,18 +33,17 @@ for (int i = 0; i < seeds.Count; i += 2)
         Console.WriteLine("Target == Start. Ensure direct mapping");
     }
 
-    var targetEnd = targetStart + rangeCount;
-    var rangeLength = targetEnd - targetStart;
-    if (rangeLength == -1)
+    var targetEnd = targetStart + rangeCount - 1;
+    
+    var rangeLength = targetEnd - targetStart + 1;
+    if (rangeLength == 0)
     {
         return (false, 0);
     }
-
     if (rangeLength <= 0)
     {
         throw new Exception($"Illegal rangeLength <=0 {rangeLength}");
     }
-
     if (rangeLength == 1)
     {
         throw new Exception("Edge case rangeLength == 1");
@@ -53,7 +52,7 @@ for (int i = 0; i < seeds.Count; i += 2)
     (long TargetStart, long TargetEnd) addedRange = (targetStart, targetEnd);
     ranges.Add(addedRange);
 
-    var refEnd = refStart + rangeCount;
+    var refEnd = refStart + rangeCount - 1;
     var refRangeLength = refEnd - refStart + 1;
     if (refRangeLength <= 0)
     {
@@ -73,13 +72,13 @@ for (int i = 0; i < seeds.Count; i += 2)
 
 foreach (var (start, end) in seedCouples)
 {
-    Console.WriteLine($"Seed \t\t{start:n0}\tEnd {end:n0} \t\t\t\t\t\t\tDiff {end - start:n0}");
+    Console.WriteLine($"Seed \t\t{start:n0}\tEnd {end:n0} \t\t\t\t\t\t\tCount {end - start + 1:n0}");
 
     foreach (var transform in transformers.Slice(0, 1))
     {
         var hasOverlap = false;
         var lastSourceRangeEnd = start;
-        var rangeToMapLeft = end - start;
+        var rangeToMapLeft = end - start + 1;
 
         List<(long TargetStart, long TargetEnd)> ranges = new();
         List<(long TargetStart, long TargetEnd)> referenceRanges = new();
@@ -105,14 +104,18 @@ foreach (var (start, end) in seedCouples)
 
             if (isContained)
             {
-                var rangeCount = end - start;
+                var rangeCount = end - start + 1;
                 var targetStart = range.Target + (start - startRange);
                 (bool added, long diff) = AddToRanges(ref ranges, ref referenceRanges, start, targetStart, rangeCount);
                 if (added)
                 {
                     rangeToMapLeft -= diff;
+                    if (rangeToMapLeft < 0)
+                    {
+                        throw new Exception("RangeToMap has become negative");
+                    }
                     Console.WriteLine($"{prefix} Contained {referenceRanges.Last()} {ranges.Last()}");
-                    lastSourceRangeEnd = endRange;
+                    // lastSourceRangeEnd = endRange;
                 }
                 else
                 {
@@ -131,13 +134,17 @@ foreach (var (start, end) in seedCouples)
             // Ranges 5-8 11-14 seed 6-12 could result in (6,8,?,,?) (11,12,?,,?) meaning 9-10 is left unmapped 
             if (startInside)
             {
-                var rangeCount = endRange - start;
+                var rangeCount = endRange - start + 1;
                 var targetStart = range.Target + (start - startRange);
 
                 (bool added, long diff) = AddToRanges(ref ranges, ref referenceRanges, start, targetStart, rangeCount);
                 if (added)
                 {
                     rangeToMapLeft -= diff;
+                    if (rangeToMapLeft < 0)
+                    {
+                        throw new Exception("RangeToMap has become negative");
+                    }
                     Console.WriteLine(
                         $"{prefix} Left-Overlap  {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
                     lastSourceRangeEnd = endRange;
@@ -151,10 +158,14 @@ foreach (var (start, end) in seedCouples)
                 {
                     var newStart = lastSourceRangeEnd + 1;
                     var newEnd = startRange - 1;
-                    var rangeCountLo2 = newEnd - newStart;
+                    var rangeCountLo2 = newEnd - newStart + 1;
                     (bool added, long diff) =
                         AddToRanges(ref ranges, ref referenceRanges, newStart, newStart, rangeCountLo2);
                     rangeToMapLeft -= diff;
+                    if (rangeToMapLeft < 0)
+                    {
+                        throw new Exception("RangeToMap has become negative");
+                    }
                     if (added)
                     {
                         var prefixSpecial =
@@ -165,19 +176,21 @@ foreach (var (start, end) in seedCouples)
                         {
                             throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {newEnd:n0}");
                         }
-
-                        lastSourceRangeEnd = newEnd;
                     }
                 }
 
                 {
-                    var rangeCount = end - startRange;
+                    var rangeCount = end - startRange + 1;
                     var targetStart = range.Target + (start - startRange);
                     (bool added2, long diff2) =
                         AddToRanges(ref ranges, ref referenceRanges, startRange, targetStart, rangeCount);
                     if (added2)
                     {
                         rangeToMapLeft -= diff2;
+                        if (rangeToMapLeft < 0)
+                        {
+                            throw new Exception("RangeToMap has become negative");
+                        }
 
                         if (ranges.Last().TargetEnd - ranges.Last().TargetStart <= 0)
                         {
@@ -187,7 +200,6 @@ foreach (var (start, end) in seedCouples)
 
                         Console.WriteLine(
                             $"{prefix} Right-Overlap {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
-                        lastSourceRangeEnd = endRange;
                     }
                 }
 
@@ -200,12 +212,16 @@ foreach (var (start, end) in seedCouples)
                     // FULL OVERLAP with direct-left, full range and the right part is either next iteration or post-loop administration
                     var newStart = lastSourceRangeEnd + 1;
                     var newEnd = startRange - 1;
-                    var rangeCountLo2 = newEnd - newStart;
+                    var rangeCountLo2 = newEnd - newStart + 1;
                     (bool added, long diff) =
                         AddToRanges(ref ranges, ref referenceRanges, newStart, newStart, rangeCountLo2);
                     if (added)
                     {
                         rangeToMapLeft -= diff;
+                        if (rangeToMapLeft < 0)
+                        {
+                            throw new Exception("RangeToMap has become negative");
+                        }
                         var prefixSpecial =
                             $"{link.Source}-{link.Target} Start {newStart:n0}\tEnd {newEnd:n0}";
                         Console.WriteLine(
@@ -215,8 +231,6 @@ foreach (var (start, end) in seedCouples)
                         {
                             throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {newEnd:n0}");
                         }
-
-                        lastSourceRangeEnd = endRange;
                     }
                     else
                     {
@@ -225,13 +239,17 @@ foreach (var (start, end) in seedCouples)
                 }
 
                 {
-                    var rangeCount = range.Count - 1;
+                    var rangeCount = range.Count;
                     var targetStart = range.Target;
                     (bool added, long diff) =
                         AddToRanges(ref ranges, ref referenceRanges, startRange, targetStart, rangeCount);
                     if (added)
                     {
                         rangeToMapLeft -= diff;
+                        if (rangeToMapLeft < 0)
+                        {
+                            throw new Exception("RangeToMap has become negative");
+                        }
                         Console.WriteLine(
                             $"{prefix} Full Overlap {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
                         lastSourceRangeEnd = endRange;
@@ -262,9 +280,10 @@ foreach (var (start, end) in seedCouples)
             throw new Exception("No range mapped");
         }
 
-        if (rangeToMapLeft != 0)
+        const int mustBe = 0;
+        if (rangeToMapLeft != mustBe)
         {
-            throw new Exception($"Range to map is not empty {rangeToMapLeft} != -1");
+            throw new Exception($"Range to map is not empty {rangeToMapLeft} != {mustBe}");
         }
 
         if (!hasOverlap)
