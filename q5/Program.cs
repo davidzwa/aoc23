@@ -324,7 +324,8 @@ for (int i = 0; i < seeds.Count; i += 2)
     return (ranges, referenceRanges);
 }
 
-foreach (var (start, end) in seedCouples.Slice(0, 1))
+var minimum = long.MaxValue; 
+foreach (var (start, end) in seedCouples)
 {
     Console.WriteLine($"Seed \t\t{start:n0}\tEnd {end:n0} \t\t\t\t\t\t\tCount {end - start + 1:n0}");
 
@@ -355,6 +356,7 @@ foreach (var (start, end) in seedCouples.Slice(0, 1))
 
     var minimumRange = ranges.Min(r => r.TargetStart);
     Console.WriteLine($"\nLowest location {minimumRange}");
+    minimum = Math.Min(minimum, minimumRange);
+    
 }
-
-// Console.WriteLine(locations2.Min());
+Console.WriteLine($"\nLowest location {minimum}");
