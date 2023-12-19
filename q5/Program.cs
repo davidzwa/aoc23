@@ -10,43 +10,8 @@ var files = new[]
 string filePath = files[3];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
-List<long> seeds = new();
-
-List<Map> transformRows = new();
-
-(string Source, string Target)? processingMap = null;
-foreach (var line in fileContent)
-{
-    if (line.Contains("seeds:"))
-    {
-        seeds = line.Split("seeds:")[1].Split(" ", StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToList();
-    }
-    else if (line.Contains(" map:"))
-    {
-        var toFrom = line.Replace(" map:", "").Split("-to-").ToList();
-        processingMap = (toFrom.First(), toFrom.Last());
-        transformRows.Add(new Map()
-        {
-            Link = processingMap.Value,
-            Ranges = new()
-        });
-    }
-    else if (!string.IsNullOrWhiteSpace(line))
-    {
-        var values = line.Split(" ", StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToList();
-        transformRows.Last().Ranges.Add((values[1], values.First(), values.Last()));
-    }
-    else if (string.IsNullOrWhiteSpace(line))
-    {
-        if (transformRows.Count > 0)
-        {
-            transformRows.Last().Ranges.Sort((m1, m2) => m1.Source > m2.Source ? 1 : -1);
-        }
-    }
-}
-
+(List<long> seeds, List<Map> transformers) = PartA.ParseFile(fileContent);
 // PartA.Process(transformRows);
-
 
 var seedCouples = new List<(long Start, long End)>();
 for (int i = 0; i < seeds.Count; i += 2)
@@ -59,13 +24,18 @@ for (int i = 0; i < seeds.Count; i += 2)
 (bool Added, long Diff) AddToRanges(
     ref List<(long TargetStart, long TargetEnd)> ranges,
     ref List<(long Start, long End)> refRanges,
-    long start,
+    long refStart,
     long targetStart,
     long rangeCount)
 {
+    if (targetStart == refStart)
+    {
+        Console.WriteLine("Target == Start. Ensure direct mapping");
+    }
+
     var targetEnd = targetStart + rangeCount;
     var rangeLength = targetEnd - targetStart;
-    if (rangeLength == -2)
+    if (rangeLength == -1)
     {
         return (false, 0);
     }
@@ -83,11 +53,8 @@ for (int i = 0; i < seeds.Count; i += 2)
     (long TargetStart, long TargetEnd) addedRange = (targetStart, targetEnd);
     ranges.Add(addedRange);
 
-    var refEnd = start + rangeCount;
-    (long Start, long End) addedRefRange = (start, refEnd);
-    refRanges.Add(addedRefRange);
-
-    var refRangeLength = refEnd - start + 1;
+    var refEnd = refStart + rangeCount;
+    var refRangeLength = refEnd - refStart + 1;
     if (refRangeLength <= 0)
     {
         throw new Exception("Illegal refRangeLength <=0");
@@ -98,29 +65,20 @@ for (int i = 0; i < seeds.Count; i += 2)
         throw new Exception("Edge case refRangeLength == 1");
     }
 
+    (long Start, long End) addedRefRange = (refStart, refEnd);
+    refRanges.Add(addedRefRange);
+
     return (true, rangeLength);
 }
 
 foreach (var (start, end) in seedCouples)
 {
-    // List<(long Start, long Finish)> rangesToProcess = new()
-    // {
-    //     (start, end)
-    // };
-    // List<(long Start, long Finish, long LocationStart, long LocationEnd)> rangesDone = new()
-    // {
-    //     (start, end, 0, 0)
-    // };
-
     Console.WriteLine($"Seed \t\t{start:n0}\tEnd {end:n0} \t\t\t\t\t\t\tDiff {end - start:n0}");
 
-    // while (rangesToProcess.Count != 0)
-    // {
-    foreach (var transform in transformRows.Slice(0, 1))
+    foreach (var transform in transformers.Slice(0, 1))
     {
         var hasOverlap = false;
         var lastSourceRangeEnd = start;
-
         var rangeToMapLeft = end - start;
 
         List<(long TargetStart, long TargetEnd)> ranges = new();
@@ -128,12 +86,12 @@ foreach (var (start, end) in seedCouples)
         foreach (var range in transform.Ranges)
         {
             var startRange = range.Source;
-            var endRange = range.Source + range.Count;
+            var endRange = range.Source + range.Count - 1;
 
             var link = transform.Link;
             var prefix =
                 $"{link.Source}-{link.Target} Start {startRange:n0}\tEnd {endRange:n0}";
-            
+
             var startInside = start >= startRange && start <= endRange;
             var endInside = (end >= startRange && end <= endRange);
             hasOverlap |= startInside || endInside;
@@ -267,14 +225,15 @@ foreach (var (start, end) in seedCouples)
                 }
 
                 {
-                    var rangeCount = end - start;
-                    var targetStart = range.Target + (start - startRange);
+                    var rangeCount = range.Count - 1;
+                    var targetStart = range.Target;
                     (bool added, long diff) =
-                        AddToRanges(ref ranges, ref referenceRanges, start, targetStart, rangeCount);
+                        AddToRanges(ref ranges, ref referenceRanges, startRange, targetStart, rangeCount);
                     if (added)
                     {
                         rangeToMapLeft -= diff;
-                        Console.WriteLine($"{prefix} Full Overlap {referenceRanges.Last()} {ranges.Last()}");
+                        Console.WriteLine(
+                            $"{prefix} Full Overlap {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
                         lastSourceRangeEnd = endRange;
                     }
                     else
@@ -282,6 +241,11 @@ foreach (var (start, end) in seedCouples)
                         throw new Exception("Unfinished FULL OVERLAP");
                     }
                 }
+            }
+
+            if (rangeToMapLeft < 0)
+            {
+                throw new Exception("RangeToMap has become negative");
             }
         }
 
@@ -298,7 +262,7 @@ foreach (var (start, end) in seedCouples)
             throw new Exception("No range mapped");
         }
 
-        if (rangeToMapLeft != ranges.Count - 1)
+        if (rangeToMapLeft != 0)
         {
             throw new Exception($"Range to map is not empty {rangeToMapLeft} != -1");
         }
@@ -307,7 +271,6 @@ foreach (var (start, end) in seedCouples)
         {
             throw new Exception("No overlap, map directly one-to-one, unfinished");
         }
-
     }
 
     Console.WriteLine("--\n");
