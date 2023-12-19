@@ -7,7 +7,7 @@ var files = new[]
     "test1.txt",
     "input2.txt",
 };
-string filePath = files[1];
+string filePath = files[0];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
 (List<long> seeds, List<Map> transformers) = PartA.ParseFile(fileContent);
@@ -102,6 +102,8 @@ for (int i = 0; i < seeds.Count; i += 2)
 
         if (isContained)
         {
+            Console.WriteLine("Contained");
+            
             var rangeCount = end - start + 1;
             var targetStart = range.Target + (start - startRange);
             (bool added, long diff) = AddToRanges(ref ranges, ref referenceRanges, start, targetStart, rangeCount);
@@ -133,6 +135,8 @@ for (int i = 0; i < seeds.Count; i += 2)
         // Ranges 5-8 11-14 seed 6-12 could result in (6,8,?,,?) (11,12,?,,?) meaning 9-10 is left unmapped 
         if (startInside)
         {
+            Console.WriteLine("Left-Overlap");
+            
             var rangeCount = endRange - start + 1;
             var targetStart = range.Target + (start - startRange);
 
@@ -147,7 +151,8 @@ for (int i = 0; i < seeds.Count; i += 2)
 
                 Console.WriteLine(
                     $"{prefix} Left-Overlap  {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
-                lastSourceRangeEnd = endRange;
+                lastSourceRangeEnd = start + rangeCount - 1;
+                Console.WriteLine($"Set lastSourceRangeEnd {lastSourceRangeEnd} ");
             }
             else
             {
@@ -159,6 +164,7 @@ for (int i = 0; i < seeds.Count; i += 2)
 
         if (endInside)
         {
+            Console.WriteLine("Right-Overlap");
             {
                 var newStart = lastSourceRangeEnd + 1;
                 var newEnd = startRange - 1;
@@ -211,13 +217,19 @@ for (int i = 0; i < seeds.Count; i += 2)
             // We've found the end of the splitrange
             break;
         }
+        
         else
         {
+            Console.WriteLine($"Full-Overlap (last {lastSourceRangeEnd}) {ranges.Last()}");
             {
                 // FULL OVERLAP with direct-left, full range and the right part is either next iteration or post-loop administration
                 var newStart = lastSourceRangeEnd + 1;
                 var newEnd = startRange - 1;
                 var rangeCountLo2 = newEnd - newStart + 1;
+                if (rangeCountLo2 < 0)
+                {
+                    throw new Exception("Lo2 diff negative");
+                }
                 (bool added, long diff) =
                     AddToRanges(ref ranges, ref referenceRanges, newStart, newStart, rangeCountLo2);
                 if (added)
@@ -310,10 +322,22 @@ for (int i = 0; i < seeds.Count; i += 2)
 
     var checkDiff = referenceRanges.Last().TargetEnd - referenceRanges.First().TargetStart;
     var seedDiff = end - start;
-    if (referenceRanges.Count >= 1 && checkDiff != seedDiff)
+    if (referenceRanges.Count >= 1)
     {
-        throw new Exception($"Mapped range end-start not equal to original end-start {checkDiff} {seedDiff}");
+        if (checkDiff > seedDiff)
+        {
+            throw new Exception($"Mapped range end-start not equal to original end-start {checkDiff} {seedDiff}");
+        }
     }
+
+    if (checkDiff < seedDiff)
+    {
+        (bool added, long diff) =
+            AddToRanges(ref ranges, ref referenceRanges, start, start, rangeToMapLeft);
+        rangeToMapLeft -= diff;
+        if (!added) throw new Exception("Direct map needed");
+    }
+
 
     const int mustBe = 0;
     if (rangeToMapLeft != mustBe)
@@ -324,7 +348,7 @@ for (int i = 0; i < seeds.Count; i += 2)
     return (ranges, referenceRanges);
 }
 
-var minimum = long.MaxValue; 
+var minimum = long.MaxValue;
 foreach (var (start, end) in seedCouples)
 {
     Console.WriteLine($"Seed \t\t{start:n0}\tEnd {end:n0} \t\t\t\t\t\t\tCount {end - start + 1:n0}");
@@ -333,9 +357,7 @@ foreach (var (start, end) in seedCouples)
     {
         (start, end)
     };
-    List<(long Start, long End)> prevRanges = new()
-    {
-    };
+    List<(long Start, long End)> prevRanges = new();
     foreach (var transform in transformers)
     {
         Console.WriteLine($"\n+++ New Round - {ranges.Count} ranges to process");
@@ -355,8 +377,9 @@ foreach (var (start, end) in seedCouples)
     }
 
     var minimumRange = ranges.Min(r => r.TargetStart);
-    Console.WriteLine($"\nLowest location {minimumRange}");
-    minimum = Math.Min(minimum, minimumRange);
     
+    minimum = Math.Min(minimum, minimumRange);
+    Console.WriteLine($"\nLowest location {minimumRange} {minimum}");
 }
+
 Console.WriteLine($"\nLowest location {minimum}");

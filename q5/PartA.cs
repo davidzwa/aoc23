@@ -35,6 +35,8 @@ public static class PartA
                 }
             }
         }
+        
+        transformRows.Last().Ranges.Sort((m1, m2) => m1.Source > m2.Source ? 1 : -1);
 
         return (seeds, transformRows);
     }
