@@ -1,4 +1,4 @@
-using q5;
+﻿using q5;
 
 var files = new[]
 {
@@ -30,7 +30,7 @@ for (int i = 0; i < seeds.Count; i += 2)
 {
     if (targetStart == refStart)
     {
-        Console.WriteLine("Target == Start. Ensure direct mapping or gapless");
+        // Console.WriteLine("Target == Start. Ensure direct mapping or gapless");
     }
 
     var targetEnd = targetStart + rangeCount - 1;
@@ -45,10 +45,10 @@ for (int i = 0; i < seeds.Count; i += 2)
         throw new Exception($"Illegal rangeLength <=0 {rangeLength}");
     }
 
-    if (rangeLength == 1)
-    {
-        throw new Exception("Edge case rangeLength == 1");
-    }
+    // if (rangeLength == 1)
+    // {
+    //     throw new Exception("Edge case rangeLength == 1");
+    // }
 
     (long TargetStart, long TargetEnd) addedRange = (targetStart, targetEnd);
     ranges.Add(addedRange);
@@ -60,10 +60,10 @@ for (int i = 0; i < seeds.Count; i += 2)
         throw new Exception("Illegal refRangeLength <=0");
     }
 
-    if (refRangeLength == 1)
-    {
-        throw new Exception("Edge case refRangeLength == 1");
-    }
+    // if (refRangeLength == 1)
+    // {
+    //     throw new Exception("Edge case refRangeLength == 1");
+    // }
 
     (long Start, long End) addedRefRange = (refStart, refEnd);
     refRanges.Add(addedRefRange);
@@ -307,7 +307,6 @@ for (int i = 0; i < seeds.Count; i += 2)
     {
         throw new Exception("No range mapped");
     }
-
 
     var checkDiff = referenceRanges.Last().TargetEnd - referenceRanges.First().TargetStart;
     var seedDiff = end - start;
