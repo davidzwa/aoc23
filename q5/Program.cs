@@ -1,4 +1,4 @@
-﻿using q5;
+using q5;
 
 var files = new[]
 {
@@ -78,7 +78,7 @@ for (int i = 0; i < seeds.Count; i += 2)
     List<(long TargetStart, long TargetEnd)> referenceRanges = new();
 
     var hasOverlap = false;
-    var lastSourceRangeEnd = start;
+    var lastSourceRangeEnd = start - 1;
     var rangeToMapLeft = end - start + 1;
     var link = transform.Link;
     foreach (var range in transform.Ranges)
@@ -177,7 +177,7 @@ for (int i = 0; i < seeds.Count; i += 2)
                         $"{link.Source}-{link.Target} Start {newStart:n0}\tEnd {newEnd:n0}";
                     Console.WriteLine(
                         $"{prefixSpecial} Direct-Map    {ranges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
-                    if (ranges.Last().TargetEnd != newEnd)
+                    if ((ranges.Last().TargetEnd - ranges.Last().TargetStart > 0) && ranges.Last().TargetEnd != newEnd)
                     {
                         throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {newEnd:n0}");
                     }
@@ -186,7 +186,7 @@ for (int i = 0; i < seeds.Count; i += 2)
 
             {
                 var rangeCount = end - startRange + 1;
-                var targetStart = range.Target + (start - startRange);
+                var targetStart = range.Target;
                 (bool added2, long diff2) =
                     AddToRanges(ref ranges, ref referenceRanges, startRange, targetStart, rangeCount);
                 if (added2)
@@ -197,7 +197,7 @@ for (int i = 0; i < seeds.Count; i += 2)
                         throw new Exception("RangeToMap has become negative");
                     }
 
-                    if (ranges.Last().TargetEnd - ranges.Last().TargetStart <= 0)
+                    if (ranges.Last().TargetEnd - ranges.Last().TargetStart < 0)
                     {
                         throw new Exception(
                             $"Wrong ending direct range {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0} <=0");
@@ -233,7 +233,7 @@ for (int i = 0; i < seeds.Count; i += 2)
                     Console.WriteLine(
                         $"{prefixSpecial} Direct-Map    {ranges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
 
-                    if (ranges.Last().TargetEnd != newEnd)
+                    if ((ranges.Last().TargetEnd - ranges.Last().TargetStart > 0) && ranges.Last().TargetEnd != newEnd)
                     {
                         throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {newEnd:n0}");
                     }
@@ -344,17 +344,18 @@ foreach (var (start, end) in seedCouples.Slice(0, 1))
         {
             Console.WriteLine($"-- Processing Range ({range.TargetStart:n0}, {range.TargetEnd:n0})");
             var results = ProcessRange(transform, range.TargetStart, range.TargetEnd);
-            Console.WriteLine($"Received +{results.Ranges.Count - 1} ranges");
+            // Console.WriteLine($"Received +{results.Ranges.Count - 1} ranges");
             newRanges.AddRange(results.Ranges);
             prevRanges.AddRange(results.ReferenceRanges);
         }
 
         prevRanges = ranges;
         ranges = newRanges;
-        Console.WriteLine($"+++ Done with total: {ranges.Count} ranges");
+        Console.WriteLine($"+++ Done {ranges.Count} ranges");
     }
 
-    Console.WriteLine("--\n");
+    var minimumRange = ranges.Min(r => r.TargetStart);
+    Console.WriteLine($"\nLowest location {minimumRange}");
 }
 
 // Console.WriteLine(locations2.Min());
