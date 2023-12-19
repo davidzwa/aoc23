@@ -30,20 +30,21 @@ for (int i = 0; i < seeds.Count; i += 2)
 {
     if (targetStart == refStart)
     {
-        Console.WriteLine("Target == Start. Ensure direct mapping");
+        Console.WriteLine("Target == Start. Ensure direct mapping or gapless");
     }
 
     var targetEnd = targetStart + rangeCount - 1;
-    
     var rangeLength = targetEnd - targetStart + 1;
     if (rangeLength == 0)
     {
         return (false, 0);
     }
+
     if (rangeLength <= 0)
     {
         throw new Exception($"Illegal rangeLength <=0 {rangeLength}");
     }
+
     if (rangeLength == 1)
     {
         throw new Exception("Edge case rangeLength == 1");
@@ -70,226 +71,287 @@ for (int i = 0; i < seeds.Count; i += 2)
     return (true, rangeLength);
 }
 
-foreach (var (start, end) in seedCouples)
+(List<(long TargetStart, long TargetEnd)> Ranges, List<(long TargetStart, long TargetEnd)> ReferenceRanges)
+    ProcessRange(Map transform, long start, long end)
 {
-    Console.WriteLine($"Seed \t\t{start:n0}\tEnd {end:n0} \t\t\t\t\t\t\tCount {end - start + 1:n0}");
+    List<(long TargetStart, long TargetEnd)> ranges = new();
+    List<(long TargetStart, long TargetEnd)> referenceRanges = new();
 
-    foreach (var transform in transformers.Slice(0, 1))
+    var hasOverlap = false;
+    var lastSourceRangeEnd = start;
+    var rangeToMapLeft = end - start + 1;
+    var link = transform.Link;
+    foreach (var range in transform.Ranges)
     {
-        var hasOverlap = false;
-        var lastSourceRangeEnd = start;
-        var rangeToMapLeft = end - start + 1;
+        var startRange = range.Source;
+        var endRange = range.Source + range.Count - 1;
 
-        List<(long TargetStart, long TargetEnd)> ranges = new();
-        List<(long TargetStart, long TargetEnd)> referenceRanges = new();
-        foreach (var range in transform.Ranges)
+        var prefix =
+            $"{link.Source}-{link.Target} Start {startRange:n0}\tEnd {endRange:n0}";
+
+        var startInside = start >= startRange && start <= endRange;
+        var endInside = (end >= startRange && end <= endRange);
+        hasOverlap |= startInside || endInside;
+
+        var isContained = startInside && endInside;
+        if (!hasOverlap)
         {
-            var startRange = range.Source;
-            var endRange = range.Source + range.Count - 1;
+            // Console.WriteLine($"No Overlap {startRange:n0} to {endRange:n0} {start:n0} to {end:n0}");
+            continue;
+        }
 
-            var link = transform.Link;
-            var prefix =
-                $"{link.Source}-{link.Target} Start {startRange:n0}\tEnd {endRange:n0}";
-
-            var startInside = start >= startRange && start <= endRange;
-            var endInside = (end >= startRange && end <= endRange);
-            hasOverlap |= startInside || endInside;
-
-            var isContained = startInside && endInside;
-            if (!hasOverlap)
+        if (isContained)
+        {
+            var rangeCount = end - start + 1;
+            var targetStart = range.Target + (start - startRange);
+            (bool added, long diff) = AddToRanges(ref ranges, ref referenceRanges, start, targetStart, rangeCount);
+            if (added)
             {
-                // Console.WriteLine($"No Overlap {startRange:n0} to {endRange:n0} {start:n0} to {end:n0}");
-                continue;
-            }
-
-            if (isContained)
-            {
-                var rangeCount = end - start + 1;
-                var targetStart = range.Target + (start - startRange);
-                (bool added, long diff) = AddToRanges(ref ranges, ref referenceRanges, start, targetStart, rangeCount);
-                if (added)
+                rangeToMapLeft -= diff;
+                if (rangeToMapLeft < 0)
                 {
-                    rangeToMapLeft -= diff;
-                    if (rangeToMapLeft < 0)
-                    {
-                        throw new Exception("RangeToMap has become negative");
-                    }
-                    Console.WriteLine($"{prefix} Contained {referenceRanges.Last()} {ranges.Last()}");
-                    // lastSourceRangeEnd = endRange;
-                }
-                else
-                {
-                    throw new Exception("Contained should always add");
+                    throw new Exception("RangeToMap has become negative");
                 }
 
-                break;
-            }
-
-            // ... [1 ... 2] ... [ 3 ... 4] ...
-            // I2  I1  LO  LO2  RO2   RO  O1    O2
-            // I2-I1, LO2-RO2, O1-O2 should be added as direct range as well
-            // LO2-RO2 can be: null (contained), partial (right or left overlap) or overfull (multi-range)
-
-            // With a previous Right-Overlap we could be skipping untransformed gaps per accident
-            // Ranges 5-8 11-14 seed 6-12 could result in (6,8,?,,?) (11,12,?,,?) meaning 9-10 is left unmapped 
-            if (startInside)
-            {
-                var rangeCount = endRange - start + 1;
-                var targetStart = range.Target + (start - startRange);
-
-                (bool added, long diff) = AddToRanges(ref ranges, ref referenceRanges, start, targetStart, rangeCount);
-                if (added)
-                {
-                    rangeToMapLeft -= diff;
-                    if (rangeToMapLeft < 0)
-                    {
-                        throw new Exception("RangeToMap has become negative");
-                    }
-                    Console.WriteLine(
-                        $"{prefix} Left-Overlap  {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
-                    lastSourceRangeEnd = endRange;
-                }
-
-                continue;
-            }
-
-            if (endInside)
-            {
-                {
-                    var newStart = lastSourceRangeEnd + 1;
-                    var newEnd = startRange - 1;
-                    var rangeCountLo2 = newEnd - newStart + 1;
-                    (bool added, long diff) =
-                        AddToRanges(ref ranges, ref referenceRanges, newStart, newStart, rangeCountLo2);
-                    rangeToMapLeft -= diff;
-                    if (rangeToMapLeft < 0)
-                    {
-                        throw new Exception("RangeToMap has become negative");
-                    }
-                    if (added)
-                    {
-                        var prefixSpecial =
-                            $"{link.Source}-{link.Target} Start {newStart:n0}\tEnd {newEnd:n0}";
-                        Console.WriteLine(
-                            $"{prefixSpecial} Direct-Map    {ranges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
-                        if (ranges.Last().TargetEnd != newEnd)
-                        {
-                            throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {newEnd:n0}");
-                        }
-                    }
-                }
-
-                {
-                    var rangeCount = end - startRange + 1;
-                    var targetStart = range.Target + (start - startRange);
-                    (bool added2, long diff2) =
-                        AddToRanges(ref ranges, ref referenceRanges, startRange, targetStart, rangeCount);
-                    if (added2)
-                    {
-                        rangeToMapLeft -= diff2;
-                        if (rangeToMapLeft < 0)
-                        {
-                            throw new Exception("RangeToMap has become negative");
-                        }
-
-                        if (ranges.Last().TargetEnd - ranges.Last().TargetStart <= 0)
-                        {
-                            throw new Exception(
-                                $"Wrong ending direct range {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0} <=0");
-                        }
-
-                        Console.WriteLine(
-                            $"{prefix} Right-Overlap {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
-                    }
-                }
-
-                // We've found the end of the splitrange
-                break;
+                Console.WriteLine($"{prefix} Contained {referenceRanges.Last()} {ranges.Last()}");
+                // lastSourceRangeEnd = endRange;
             }
             else
             {
-                {
-                    // FULL OVERLAP with direct-left, full range and the right part is either next iteration or post-loop administration
-                    var newStart = lastSourceRangeEnd + 1;
-                    var newEnd = startRange - 1;
-                    var rangeCountLo2 = newEnd - newStart + 1;
-                    (bool added, long diff) =
-                        AddToRanges(ref ranges, ref referenceRanges, newStart, newStart, rangeCountLo2);
-                    if (added)
-                    {
-                        rangeToMapLeft -= diff;
-                        if (rangeToMapLeft < 0)
-                        {
-                            throw new Exception("RangeToMap has become negative");
-                        }
-                        var prefixSpecial =
-                            $"{link.Source}-{link.Target} Start {newStart:n0}\tEnd {newEnd:n0}";
-                        Console.WriteLine(
-                            $"{prefixSpecial} Direct-Map    {ranges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
+                throw new Exception("Contained should always add");
+            }
 
-                        if (ranges.Last().TargetEnd != newEnd)
-                        {
-                            throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {newEnd:n0}");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"No direct mapping. Last end {lastSourceRangeEnd:n0}");
-                    }
+            break;
+        }
+
+        // ... [1 ... 2] ... [ 3 ... 4] ...
+        // I2  I1  LO  LO2  RO2   RO  O1    O2
+        // I2-I1, LO2-RO2, O1-O2 should be added as direct range as well
+        // LO2-RO2 can be: null (contained), partial (right or left overlap) or overfull (multi-range)
+
+        // With a previous Right-Overlap we could be skipping untransformed gaps per accident
+        // Ranges 5-8 11-14 seed 6-12 could result in (6,8,?,,?) (11,12,?,,?) meaning 9-10 is left unmapped 
+        if (startInside)
+        {
+            var rangeCount = endRange - start + 1;
+            var targetStart = range.Target + (start - startRange);
+
+            (bool added, long diff) = AddToRanges(ref ranges, ref referenceRanges, start, targetStart, rangeCount);
+            if (added)
+            {
+                rangeToMapLeft -= diff;
+                if (rangeToMapLeft < 0)
+                {
+                    throw new Exception("RangeToMap has become negative");
                 }
 
+                Console.WriteLine(
+                    $"{prefix} Left-Overlap  {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
+                lastSourceRangeEnd = endRange;
+            }
+            else
+            {
+                Console.WriteLine("Range empty. Not added");
+            }
+
+            continue;
+        }
+
+        if (endInside)
+        {
+            {
+                var newStart = lastSourceRangeEnd + 1;
+                var newEnd = startRange - 1;
+                var rangeCountLo2 = newEnd - newStart + 1;
+                (bool added, long diff) =
+                    AddToRanges(ref ranges, ref referenceRanges, newStart, newStart, rangeCountLo2);
+                rangeToMapLeft -= diff;
+                if (rangeToMapLeft < 0)
                 {
-                    var rangeCount = range.Count;
-                    var targetStart = range.Target;
-                    (bool added, long diff) =
-                        AddToRanges(ref ranges, ref referenceRanges, startRange, targetStart, rangeCount);
-                    if (added)
+                    throw new Exception("RangeToMap has become negative");
+                }
+
+                if (added)
+                {
+                    var prefixSpecial =
+                        $"{link.Source}-{link.Target} Start {newStart:n0}\tEnd {newEnd:n0}";
+                    Console.WriteLine(
+                        $"{prefixSpecial} Direct-Map    {ranges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
+                    if (ranges.Last().TargetEnd != newEnd)
                     {
-                        rangeToMapLeft -= diff;
-                        if (rangeToMapLeft < 0)
-                        {
-                            throw new Exception("RangeToMap has become negative");
-                        }
-                        Console.WriteLine(
-                            $"{prefix} Full Overlap {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
-                        lastSourceRangeEnd = endRange;
-                    }
-                    else
-                    {
-                        throw new Exception("Unfinished FULL OVERLAP");
+                        throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {newEnd:n0}");
                     }
                 }
             }
 
+            {
+                var rangeCount = end - startRange + 1;
+                var targetStart = range.Target + (start - startRange);
+                (bool added2, long diff2) =
+                    AddToRanges(ref ranges, ref referenceRanges, startRange, targetStart, rangeCount);
+                if (added2)
+                {
+                    rangeToMapLeft -= diff2;
+                    if (rangeToMapLeft < 0)
+                    {
+                        throw new Exception("RangeToMap has become negative");
+                    }
+
+                    if (ranges.Last().TargetEnd - ranges.Last().TargetStart <= 0)
+                    {
+                        throw new Exception(
+                            $"Wrong ending direct range {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0} <=0");
+                    }
+
+                    Console.WriteLine(
+                        $"{prefix} Right-Overlap {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
+                }
+            }
+
+            // We've found the end of the splitrange
+            break;
+        }
+        else
+        {
+            {
+                // FULL OVERLAP with direct-left, full range and the right part is either next iteration or post-loop administration
+                var newStart = lastSourceRangeEnd + 1;
+                var newEnd = startRange - 1;
+                var rangeCountLo2 = newEnd - newStart + 1;
+                (bool added, long diff) =
+                    AddToRanges(ref ranges, ref referenceRanges, newStart, newStart, rangeCountLo2);
+                if (added)
+                {
+                    rangeToMapLeft -= diff;
+                    if (rangeToMapLeft < 0)
+                    {
+                        throw new Exception("RangeToMap has become negative");
+                    }
+
+                    var prefixSpecial =
+                        $"{link.Source}-{link.Target} Start {newStart:n0}\tEnd {newEnd:n0}";
+                    Console.WriteLine(
+                        $"{prefixSpecial} Direct-Map    {ranges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
+
+                    if (ranges.Last().TargetEnd != newEnd)
+                    {
+                        throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {newEnd:n0}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"No direct mapping. Last end {lastSourceRangeEnd:n0}");
+                }
+            }
+
+            {
+                var rangeCount = range.Count;
+                var targetStart = range.Target;
+                (bool added, long diff) =
+                    AddToRanges(ref ranges, ref referenceRanges, startRange, targetStart, rangeCount);
+                if (added)
+                {
+                    rangeToMapLeft -= diff;
+                    if (rangeToMapLeft < 0)
+                    {
+                        throw new Exception("RangeToMap has become negative");
+                    }
+
+                    Console.WriteLine(
+                        $"{prefix} Full Overlap {referenceRanges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
+                    lastSourceRangeEnd = endRange;
+                }
+                else
+                {
+                    throw new Exception("Unfinished FULL OVERLAP");
+                }
+            }
+        }
+
+        if (rangeToMapLeft < 0)
+        {
+            throw new Exception("RangeToMap has become negative");
+        }
+    }
+
+    // Completely outside all ranges
+    if (referenceRanges.Count == 0)
+    {
+        (bool added, long diff) =
+            AddToRanges(ref ranges, ref referenceRanges, start, start, rangeToMapLeft);
+        if (added)
+        {
+            rangeToMapLeft -= diff;
             if (rangeToMapLeft < 0)
             {
                 throw new Exception("RangeToMap has become negative");
             }
+
+            var prefixSpecial =
+                $"{link.Source}-{link.Target} Start {start:n0}\tEnd {end:n0}";
+            Console.WriteLine(
+                $"{prefixSpecial} Direct-Map    {ranges.Last()} {ranges.Last()} \tDiff {ranges.Last().TargetEnd - ranges.Last().TargetStart:n0}");
+
+            if (ranges.Last().TargetEnd != end)
+            {
+                throw new Exception($"Wrong ending direct range {ranges.Last().TargetEnd:n0} {end:n0}");
+            }
+        }
+        else
+        {
+            throw new Exception("No overlap, must have direct mapping result");
+        }
+    }
+
+    if (referenceRanges.Count == 0)
+    {
+        throw new Exception("No range mapped");
+    }
+
+
+    var checkDiff = referenceRanges.Last().TargetEnd - referenceRanges.First().TargetStart;
+    var seedDiff = end - start;
+    if (referenceRanges.Count >= 1 && checkDiff != seedDiff)
+    {
+        throw new Exception($"Mapped range end-start not equal to original end-start {checkDiff} {seedDiff}");
+    }
+
+    const int mustBe = 0;
+    if (rangeToMapLeft != mustBe)
+    {
+        throw new Exception($"Range to map is not empty {rangeToMapLeft} != {mustBe}");
+    }
+
+    return (ranges, referenceRanges);
+}
+
+foreach (var (start, end) in seedCouples.Slice(0, 1))
+{
+    Console.WriteLine($"Seed \t\t{start:n0}\tEnd {end:n0} \t\t\t\t\t\t\tCount {end - start + 1:n0}");
+
+    List<(long TargetStart, long TargetEnd)> ranges = new()
+    {
+        (start, end)
+    };
+    List<(long Start, long End)> prevRanges = new()
+    {
+    };
+    foreach (var transform in transformers)
+    {
+        Console.WriteLine($"\n+++ New Round - {ranges.Count} ranges to process");
+        List<(long TargetStart, long TargetEnd)> newRanges = new();
+        foreach (var range in ranges)
+        {
+            Console.WriteLine($"-- Processing Range ({range.TargetStart:n0}, {range.TargetEnd:n0})");
+            var results = ProcessRange(transform, range.TargetStart, range.TargetEnd);
+            Console.WriteLine($"Received +{results.Ranges.Count - 1} ranges");
+            newRanges.AddRange(results.Ranges);
+            prevRanges.AddRange(results.ReferenceRanges);
         }
 
-        // TODO check if not direct mapping left (previous left-overlap)
-        var checkDiff = referenceRanges.Last().TargetEnd - referenceRanges.First().TargetStart;
-        var seedDiff = end - start;
-        if (referenceRanges.Count >= 1 && checkDiff != seedDiff)
-        {
-            throw new Exception($"Mapped range end-start not equal to original end-start {checkDiff} {seedDiff}");
-        }
-
-        if (referenceRanges.Count == 0)
-        {
-            throw new Exception("No range mapped");
-        }
-
-        const int mustBe = 0;
-        if (rangeToMapLeft != mustBe)
-        {
-            throw new Exception($"Range to map is not empty {rangeToMapLeft} != {mustBe}");
-        }
-
-        if (!hasOverlap)
-        {
-            throw new Exception("No overlap, map directly one-to-one, unfinished");
-        }
+        prevRanges = ranges;
+        ranges = newRanges;
+        Console.WriteLine($"+++ Done with total: {ranges.Count} ranges");
     }
 
     Console.WriteLine("--\n");
