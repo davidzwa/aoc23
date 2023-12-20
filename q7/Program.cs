@@ -6,7 +6,7 @@ var files = new[]
     "example.txt",
     "test1.txt",
 };
-string filePath = files[2];
+string filePath = files[0];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
 
@@ -20,6 +20,7 @@ foreach (var line in fileContent)
 }
 
 Question.AnalyzeLines(ref plays);
+// 251216224 correct
 
 public class State
 {
