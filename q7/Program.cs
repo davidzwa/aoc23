@@ -22,7 +22,12 @@ foreach (var line in fileContent)
 Question.AnalyzeLines(ref plays);
 // 251216224 correct
 
+Console.WriteLine("Part 2");
+Question.V2 = true;
+Question.AnalyzeLines(ref plays);
+
 public class State
 {
+    public int JCount { get; set; }
     public HandType Type { get; set; }
 }
