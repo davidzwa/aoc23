@@ -9,7 +9,6 @@ var files = new[]
 string filePath = files[0];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
-
 // Console.WriteLine(dict);
 
 List<(string Hand, long Bid, State state)> plays = new();
