@@ -38,13 +38,13 @@ for (int j = 0; j < directions.Count; j++)
     steps++;
     if (j == directions.Count - 1)
     {
-        j = 0;
+        j = -1;
     }
 
-    if (steps > 50)
-    {
-        throw new Exception("Ehm");
-    }
+    // if (steps > 50)
+    // {
+    //     throw new Exception("Ehm");
+    // }
 }
 
 Console.WriteLine($"Steps {steps}");
