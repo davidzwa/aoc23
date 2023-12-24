@@ -23,34 +23,49 @@ var isV2 = true;
 var sources = FindStartingPoints(ref map, isV2);
 for (int j = 0; j < directions.Count; j++)
 {
-    if (isV2 && Question.IsDoneV2(sources.Select(s => s.Key).ToList()))
+    if (Question.IsDoneV2(sources.Select(s => s.Key).ToList()))
     {
         Console.WriteLine("Done V2");
         break;
     }
 
-    if (!isV2 && Question.IsDone(sources.First().Key))
-    {
-        Console.WriteLine("Done V1");
-        break;
-    }
+    // if (!isV2 && Question.IsDone(sources.First().Key))
+    // {
+    //     Console.WriteLine("Done V1");
+    //     break;
+    // }
 
     var newSources = new Dictionary<string, (string Left, string Right)>();
     foreach (var source in sources)
     {
         var sourceUpdate = ProcessNext(ref map, source.Value, directions[j]);
         newSources.Add(sourceUpdate.Key, sourceUpdate.Value);
-        Console.WriteLine($"[{steps}] Source: {source.Key} Dirs: {source.Value} Next: {source.Key}");
-
+        // Console.WriteLine($"[{steps}] Source: {source.Key} {directions[j]} Dirs: {source.Value} Next: {sourceUpdate.Key}");
     }
 
+    // var enders = sources.Where(s => s.Key.EndsWith('Z')).Count();
+
+    // if (enders > 4)
+    // {
+    //     Console.WriteLine($"E: {enders}");
+    // }
+    if (steps % 1000000 == 0)
+    {
+        Console.WriteLine($"R{steps:n0}");
+    }
+    
     steps++;
-    Console.WriteLine("\nNext round");
+    // Console.WriteLine("\nNext round");
 
     if (j == directions.Count - 1)
     {
         j = -1;
     }
+
+    // if (steps == 4)
+    // {
+    //     return;
+    // }
 
     sources = newSources;
 }
