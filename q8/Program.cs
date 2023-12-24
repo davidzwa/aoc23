@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using q8;
 
 var files = new[]
@@ -20,17 +19,19 @@ foreach (var l in fileContent[2..])
 }
 
 var steps = 0;
-var isV2 = false;
+var isV2 = true;
 var sources = FindStartingPoints(ref map, isV2);
 for (int j = 0; j < directions.Count; j++)
 {
     if (isV2 && Question.IsDoneV2(sources.Select(s => s.Key).ToList()))
     {
+        Console.WriteLine("Done V2");
         break;
     }
 
     if (!isV2 && Question.IsDone(sources.First().Key))
     {
+        Console.WriteLine("Done V1");
         break;
     }
 
@@ -39,10 +40,12 @@ for (int j = 0; j < directions.Count; j++)
     {
         var sourceUpdate = ProcessNext(ref map, source.Value, directions[j]);
         newSources.Add(sourceUpdate.Key, sourceUpdate.Value);
-        // Console.WriteLine($"[{steps}] Source: {source.Key} Dirs: {source.Value} Next: {source.Key}");
+        Console.WriteLine($"[{steps}] Source: {source.Key} Dirs: {source.Value} Next: {source.Key}");
 
-        steps++;
     }
+
+    steps++;
+    Console.WriteLine("\nNext round");
 
     if (j == directions.Count - 1)
     {
