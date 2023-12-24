@@ -2,8 +2,6 @@
 
 public class Question
 {
-    public static bool V2 = false;
-
     public static string ProcessSourceDirection(char directionStr, (string Left, string Right) options)
     {
         var direction = ParseDirection(directionStr);
@@ -25,6 +23,11 @@ public class Question
         return dirChar == 'L' ? Direction.Left : Direction.Right;
     }
 
+    public static bool IsDoneV2(List<string> sources)
+    {
+        return sources.All(s => s.EndsWith('Z'));
+    }
+    
     public static bool IsDone(string source)
     {
         return source == "ZZZ";

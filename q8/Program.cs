@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using q8;
 
-Question.V2 = false;
 var files = new[]
 {
     "input.txt",
@@ -21,27 +20,52 @@ foreach (var l in fileContent[2..])
 }
 
 var steps = 0;
-var source = map.First(f => f.Key == "AAA");
+var isV2 = false;
+var sources = FindStartingPoints(ref map, isV2);
 for (int j = 0; j < directions.Count; j++)
 {
-    if (Question.IsDone(source.Key))
+    if (isV2 && Question.IsDoneV2(sources.Select(s => s.Key).ToList()))
     {
         break;
     }
 
-    source = ProcessNext(ref map, source.Value, directions[j]);
-    Console.WriteLine($"[{steps}] Source: {source.Key} Dirs: {source.Value} Next: {source.Key}");
+    if (!isV2 && Question.IsDone(sources.First().Key))
+    {
+        break;
+    }
 
-    steps++;
+    var newSources = new Dictionary<string, (string Left, string Right)>();
+    foreach (var source in sources)
+    {
+        var sourceUpdate = ProcessNext(ref map, source.Value, directions[j]);
+        newSources.Add(sourceUpdate.Key, sourceUpdate.Value);
+        // Console.WriteLine($"[{steps}] Source: {source.Key} Dirs: {source.Value} Next: {source.Key}");
+
+        steps++;
+    }
+
     if (j == directions.Count - 1)
     {
         j = -1;
     }
+
+    sources = newSources;
 }
 
 Console.WriteLine($"Steps {steps}");
 // 5041 too low
 // 19951 correct
+
+Dictionary<string, (string Left, string Right)> FindStartingPoints(
+    ref Dictionary<string, (string Left, string Right)> map, bool isV2)
+{
+    if (!isV2)
+    {
+        return map.Where(f => f.Key == "AAA").ToDictionary();
+    }
+
+    return map.Where(m => m.Key.EndsWith('A')).ToDictionary();
+}
 
 KeyValuePair<string, (string Left, string Right)> ProcessNext(
     ref Dictionary<string, (string Left, string Right)> map,
