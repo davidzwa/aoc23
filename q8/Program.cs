@@ -20,7 +20,7 @@ foreach (var l in fileContent[2..])
 }
 
 var steps = 0;
-var source = map.First();
+var source = map.First(f => f.Key == "AAA");
 for (int j = 0; j < directions.Count; j++)
 {
     
@@ -41,10 +41,11 @@ for (int j = 0; j < directions.Count; j++)
         j = 0;
     }
 
-    if (steps > 5)
+    if (steps > 50000)
     {
         throw new Exception("Ehm");
     }
 }
 
 Console.WriteLine($"Steps {steps}");
+// 5041 too low
