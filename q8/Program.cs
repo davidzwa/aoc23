@@ -30,7 +30,7 @@ for (int j = 0; j < directions.Count; j++)
     }
 
     var direction = Question.ParseDirection(directions[j]);
-    Console.WriteLine($"Source: {source.Key} Dirs: {source.Value} Next: {direction}");
+    Console.WriteLine($"[{steps}] Source: {source.Key} Dirs: {source.Value} Next: {direction}");
 
     var targetName = Question.ProcessLine(source.Value, direction);
     source = new (targetName, map[targetName]);
@@ -41,7 +41,7 @@ for (int j = 0; j < directions.Count; j++)
         j = 0;
     }
 
-    if (steps > 50000)
+    if (steps > 50)
     {
         throw new Exception("Ehm");
     }
