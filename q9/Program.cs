@@ -9,12 +9,18 @@ var files = new[]
 string filePath = files[0];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
-var sum = 0;
-foreach (var line in fileContent)
+var (first,last) = (0L,0L);
+var lines = fileContent.Select(Question.ParseLine).ToList();
+foreach (var line in lines)
 {
-    sum += Question.ProcessLine(line);
+    var result = Question.ProcessLinePart1(line);
+
+    Console.WriteLine(result);
+    first += result.Item1;
+    last += result.Item2;
 }
 
-Console.WriteLine(sum);
+Console.WriteLine($"{first} {last}");
 
 // 1834108701 correct answer
+// 993 correct
