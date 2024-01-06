@@ -2,7 +2,7 @@
 
 public static class Question
 {
-    public static (int X, int Y) ParsePipes(ref List<List<(Pipe Pipe, int Score)>> directions, List<string> lines)
+    public static (int X, int Y) ParsePipes(ref List<List<(Pipe Pipe, int Score, (int X, int Y)? Next)>> directions, List<string> lines)
     {
         directions.Clear();
 
@@ -20,7 +20,7 @@ public static class Question
                     startPosition = (x, y);
                 }
 
-                row.Add(new(pipe, 0));
+                row.Add(new(pipe, 0, null));
             }
         }
 
@@ -32,7 +32,7 @@ public static class Question
         return startPosition;
     }
 
-    public static List<Move> GetValidMoves(List<List<(Pipe Pipe, int Score)>> directions,
+    public static List<Move> GetValidMoves(List<List<(Pipe Pipe, int Score, (int X, int Y)? Next)>> directions,
         (int X, int Y) pos)
     {
         var size = (W: directions.First().Count, H: directions.Count);
@@ -48,7 +48,7 @@ public static class Question
             var isInRect = wMin && wMax && hMin && hMax;
             if (!wMax || !hMax)
             {
-                Console.WriteLine(
+                System.Console.WriteLine(
                     $"W:{size.W} H:{size.H} {ToChar(direction.Pipe)}({pos.X}:{pos.Y}) ({c.X}:{c.Y}) Invalid");
             }
 
