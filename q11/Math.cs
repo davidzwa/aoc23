@@ -2,14 +2,15 @@
 
 public static class MathQ11
 {
-    public static int Binomial(int n, int k)
+    public static long Binomial(long n, long k)
     {
-        return Factorial(n) / (Factorial(k) * Factorial(n - k));
+        var fact = Factorial(k) * Factorial(n - k);
+        return Factorial(n) / fact;
     }
 
-    public static int Factorial(int number)
+    public static long Factorial(long number)
     {
-        if (number == 1)
+        if (number <= 1)
         {
             return 1;
         }

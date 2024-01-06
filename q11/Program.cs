@@ -1,5 +1,4 @@
-﻿using System.Data;
-using System.Drawing;
+﻿using System.Drawing;
 using q11;
 
 var files = new[]
@@ -8,7 +7,7 @@ var files = new[]
     "example.txt",
     "test1.txt",
 };
-string filePath = files[1];
+string filePath = files[0];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
 int[,] map = new int[fileContent.Count, fileContent.First().Length];
@@ -72,12 +71,12 @@ for (int y = 0; y < size.Height; y++)
 
 Console.WriteLine($"Rows {string.Join(", ", emptyRows)}");
 Console.WriteLine($"Cols {string.Join(", ", emptyCols)}");
-Matrix.PrintArray(map);
-Console.WriteLine(locations.Count);
-Console.WriteLine(MathQ11.Binomial(locations.Count, 2));
+// Matrix.PrintArray(map);
+Console.WriteLine($"Locations {locations.Count}");
+// Console.WriteLine(MathQ11.Binomial(locations.Count, 2));
 
 var combinations = MathQ11.CombinationsOfK(locations.ToArray(), 2);
-Console.WriteLine(combinations.Count());
+Console.WriteLine($"Combinations {combinations.Count()}");
 var sumDistances = 0;
 foreach (var comb in combinations)
 {
@@ -88,10 +87,11 @@ foreach (var comb in combinations)
     var diffY = Math.Abs(c2.Y - c1.Y);
     var dist = diffX + diffY;
 
-    Console.Write(string.Join(" ", valueTuples.Select(c => string.Join(" ", c))));
-    Console.WriteLine($"\t\t\tD={dist}");
+    // Console.Write(string.Join(" ", valueTuples.Select(c => string.Join(" ", c))));
+    // Console.WriteLine($"\t\t\tD={dist}");
 
     sumDistances += dist;
 }
 
+// 9639160 correct
 Console.WriteLine(sumDistances);
