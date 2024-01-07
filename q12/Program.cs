@@ -6,7 +6,7 @@ var files = new[]
     "example.txt",
     "test1.txt",
 };
-string filePath = files[1];
+string filePath = files[2];
 List<string> fileContent = File.ReadLines(filePath).ToList();
 
 List<Row> rows = new();
@@ -25,12 +25,12 @@ foreach (var line in fileContent)
     // Console.Write(springs + " ");
     // Console.WriteLine(string.Join(", ", record));
 
-    if (rows.Count == 1)
-    {
+    // if (rows.Count == 1)
+    // {
         sum += Question.FindCombinations(springs, record);
-    }
+    // }
 }
-Console.WriteLine(sum);
+Console.WriteLine($"Done {sum}");
 
 class Row
 {
